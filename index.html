@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudwalk Financial Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-tertiary: #ec4899;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #2d3a50;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        .dashboard-container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border-color);
+        }
+        .logo-section { display: flex; align-items: center; gap: 16px; }
+        .logo {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-family: 'Space Mono', monospace; font-weight: 700; font-size: 20px;
+        }
+        .title-section h1 { font-size: 24px; font-weight: 700; }
+        .title-section p { color: var(--text-secondary); font-size: 14px; margin-top: 2px; }
+        .upload-section { display: flex; align-items: center; gap: 16px; }
+        .upload-btn {
+            display: flex; align-items: center; gap: 8px; padding: 12px 24px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none; border-radius: 10px; color: white;
+            font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .upload-btn:hover { transform: translateY(-2px); }
+        .upload-btn svg { width: 18px; height: 18px; }
+        #fileInput { display: none; }
+        .file-name { color: var(--text-secondary); font-size: 13px; }
+        .tabs-container {
+            display: flex; gap: 8px; margin-bottom: 24px;
+            background: var(--bg-secondary); padding: 6px; border-radius: 12px; width: fit-content;
+        }
+        .tab-btn {
+            padding: 12px 28px; background: transparent; border: none; border-radius: 8px;
+            color: var(--text-secondary); font-family: 'DM Sans', sans-serif;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .tab-btn.active {
+            background: var(--accent-primary); color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .tab-btn:hover:not(.active) { background: var(--bg-card); color: var(--text-primary); }
+        .filters-container { display: flex; gap: 16px; margin-bottom: 32px; align-items: center; }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        .filter-label { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
+        .filter-select {
+            padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-primary); font-family: 'DM Sans', sans-serif;
+            font-size: 14px; cursor: pointer; min-width: 140px;
+        }
+        .filter-select:focus { outline: none; border-color: var(--accent-primary); }
+        .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; margin-top: 40px; }
+        .section-header:first-of-type { margin-top: 0; }
+        .section-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .section-icon.acquiring { background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%); }
+        .section-icon.banking { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+        .section-icon.lending { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .section-icon.jim { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
+        .section-icon.income { background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); }
+        .section-icon.balance { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
+        .section-icon.cashflow { background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%); }
+        .section-title { font-size: 18px; font-weight: 700; }
+        .charts-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 24px; margin-bottom: 20px;
+        }
+        .chart-card {
+            background: var(--bg-card); border-radius: 16px; padding: 24px;
+            border: 1px solid var(--border-color);
+        }
+        .chart-card:hover { border-color: var(--accent-primary); }
+        .chart-card.full-width { grid-column: 1 / -1; }
+        .chart-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .chart-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+        .chart-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .chart-container { position: relative; height: 280px; }
+        .chart-container.tall { height: 350px; }
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 14, 23, 0.9); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; pointer-events: none;
+        }
+        .loading-overlay.active { opacity: 1; pointer-events: all; }
+        .loader {
+            width: 48px; height: 48px; border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text { margin-top: 16px; color: var(--text-secondary); font-size: 14px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 80px 40px; text-align: center; background: var(--bg-card);
+            border-radius: 20px; border: 2px dashed var(--border-color);
+        }
+        .empty-icon {
+            width: 80px; height: 80px; background: var(--bg-secondary); border-radius: 20px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
+        }
+        .empty-icon svg { width: 40px; height: 40px; color: var(--text-muted); }
+        .empty-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .empty-text { color: var(--text-secondary); font-size: 14px; max-width: 400px; }
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 20px; align-items: flex-start; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader"></div>
+        <p class="loading-text">Processing data...</p>
+    </div>
+
+    <div class="dashboard-container">
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo">CW</div>
+                <div class="title-section">
+                    <h1>Cloudwalk Financial Dashboard</h1>
+                    <p>Comprehensive financial metrics and KPIs</p>
+                </div>
+            </div>
+            <div class="upload-section">
+                <span class="file-name" id="fileName">No file loaded</span>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload Excel
+                </button>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
+            </div>
+        </header>
+
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="monthly" onclick="switchTab('monthly')">Monthly</button>
+            <button class="tab-btn" data-tab="quarterly" onclick="switchTab('quarterly')">Quarterly</button>
+            <button class="tab-btn" data-tab="yearly" onclick="switchTab('yearly')">Annual</button>
+        </div>
+
+        <div class="filters-container">
+            <div class="filter-group">
+                <span class="filter-label">From:</span>
+                <select class="filter-select" id="startPeriod" onchange="applyFilters()"></select>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">To:</span>
+                <select class="filter-select" id="endPeriod" onchange="applyFilters()"></select>
+            </div>
+        </div>
+        
+        <div id="dashboardContent">
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h2 class="empty-title">Upload your data</h2>
+                <p class="empty-text">Click the "Upload Excel" button above to load your Cloudwalk financial data.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let globalData = {
+            monthly: null,
+            quarterly: null,
+            yearly: null
+        };
+        let currentTab = 'monthly';
+        let chartInstances = {};
+
+        // Color palette
+        const colors = {
+            primary: '#6366f1',
+            secondary: '#8b5cf6',
+            tertiary: '#ec4899',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            cyan: '#06b6d4',
+            orange: '#f97316',
+            pink: '#f472b6',
+            lime: '#84cc16'
+        };
+        const colorArray = Object.values(colors);
+
+        // Chart.js defaults
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#2d3a50';
+        Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+        // Tab switching
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tab);
+            });
+            
+            const sheetData = globalData[tab];
+            if (sheetData && sheetData.data) {
+                updateFilters();
+                renderDashboard();
+            }
+        }
+
+        // File upload handler
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('loadingOverlay').classList.add('active');
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+                
+                // Parse all sheets
+                globalData.monthly = parseSheet(workbook.Sheets['Monthly']);
+                globalData.quarterly = parseSheet(workbook.Sheets['Quarterly']);
+                globalData.yearly = parseSheet(workbook.Sheets['Yearly']);
+
+                updateFilters();
+                renderDashboard();
+            } catch (error) {
+                showDebug('Error: ' + error.message);
+            } finally {
+                document.getElementById('loadingOverlay').classList.remove('active');
+            }
+        }
+
+        // Parse sheet data
+        function parseSheet(sheet) {
+            if (!sheet) return null;
+            
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+            const startCol = 10;
+            
+            // Dynamically find the period row (first row with valid data at column 10+)
+            let periodRowIdx = -1;
+            for (let rowIdx = 0; rowIdx < Math.min(15, data.length); rowIdx++) {
+                const row = data[rowIdx] || [];
+                const val = row[startCol];
+                
+                // Check if this looks like a period value (not null, not empty, not NaN)
+                if (val !== null && val !== undefined && val !== '' && 
+                    !(typeof val === 'number' && isNaN(val))) {
+                    // Make sure it's not just a header like "Period"
+                    if (typeof val !== 'string' || !val.toLowerCase().includes('period')) {
+                        periodRowIdx = rowIdx;
+                        break;
+                    }
+                }
+            }
+            
+            // If no period row found, return empty
+            if (periodRowIdx === -1) {
+                return { data, startCol, periods: [], periodRowIdx: -1 };
+            }
+            
+            const periodRow = data[periodRowIdx] || [];
+            
+            // Extract valid periods
+            const periods = [];
+            for (let i = startCol; i < periodRow.length; i++) {
+                const val = periodRow[i];
+                if (val !== null && val !== undefined && val !== '' && !(typeof val === 'number' && isNaN(val))) {
+                    periods.push({ index: i, value: val });
+                }
+            }
+            
+            return { data, startCol, periods, periodRowIdx };
+        }
+
+        // Get row data by label
+        function getRowData(sheetData, label) {
+            if (!sheetData || !sheetData.data || !sheetData.periods) {
+                return { values: [], periods: [] };
+            }
+            
+            const { data, periods } = sheetData;
+            
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                if (row && row[1] === label) {
+                    const values = periods.map(p => row[p.index]);
+                    const periodLabels = periods.map(p => p.value);
+                    return { values, periods: periodLabels };
+                }
+            }
+            return { values: [], periods: [] };
+        }
+
+        // Get sub-row data
+        function getSubRowData(sheetData, parentLabel, subLabel) {
+            if (!sheetData || !sheetData.data || !sheetData.periods) {
+                return { values: [], periods: [] };
+            }
+            
+            const { data, periods } = sheetData;
+            let inSection = false;
+            
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                if (row && row[1] === parentLabel) {
+                    inSection = true;
+                    continue;
+                }
+                if (inSection && row && row[1] && row[1] !== parentLabel && !row[2]) {
+                    inSection = false;
+                }
+                if (inSection && row && row[2] === subLabel) {
+                    const values = periods.map(p => row[p.index]);
+                    const periodLabels = periods.map(p => p.value);
+                    return { values, periods: periodLabels };
+                }
+            }
+            return { values: [], periods: [] };
+        }
+
+        // Get components between labels
+        function getComponentsBetween(sheetData, startLabel, endLabel) {
+            if (!sheetData || !sheetData.data || !sheetData.periods) return [];
+            
+            const { data, periods } = sheetData;
+            let components = [];
+            let inSection = false;
+            
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                if (row && row[1] === startLabel) {
+                    inSection = true;
+                    continue;
+                }
+                if (inSection && row && row[1] === endLabel) break;
+                if (inSection && row && row[2]) {
+                    const values = periods.map(p => row[p.index]);
+                    components.push({ label: row[2], values });
+                }
+            }
+            return components;
+        }
+
+        // Get row after label
+        function getRowAfterLabel(sheetData, label, offset = 1) {
+            if (!sheetData || !sheetData.data || !sheetData.periods) {
+                return { values: [], periods: [] };
+            }
+            
+            const { data, periods } = sheetData;
+            
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] && data[i][1] === label) {
+                    const targetRow = data[i + offset];
+                    if (targetRow) {
+                        const values = periods.map(p => targetRow[p.index]);
+                        const periodLabels = periods.map(p => p.value);
+                        return { values, periods: periodLabels };
+                    }
+                }
+            }
+            return { values: [], periods: [] };
+        }
+
+        // Get cash flow row by occurrence
+        function getCashFlowRow(sheetData, label, occurrence = 1) {
+            if (!sheetData || !sheetData.data || !sheetData.periods) {
+                return { values: [], periods: [] };
+            }
+            
+            const { data, periods } = sheetData;
+            let count = 0;
+            
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                if (row && row[1] === label) {
+                    count++;
+                    if (count === occurrence) {
+                        const values = periods.map(p => row[p.index]);
+                        const periodLabels = periods.map(p => p.value);
+                        return { values, periods: periodLabels };
+                    }
+                }
+            }
+            return { values: [], periods: [] };
+        }
+
+        // Get row by occurrence (for duplicate labels)
+        function getRowByOccurrence(sheetData, label, occurrence = 1) {
+            return getCashFlowRow(sheetData, label, occurrence);
+        }
+
+        // Format period labels
+        function formatPeriod(period) {
+            if (!period) return '';
+            if (typeof period === 'number') return period.toString();
+            if (period instanceof Date) {
+                const month = period.toLocaleString('en', { month: 'short' });
+                const year = period.getFullYear().toString().slice(-2);
+                return `${month}'${year}`;
+            }
+            return period.toString();
+        }
+
+        // Format number (for counts - actual numbers)
+        function formatNumber(num, decimals = 1) {
+            if (num === null || num === undefined || isNaN(num)) return '-';
+            if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(decimals) + 'B';
+            if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(decimals) + 'M';
+            if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(decimals) + 'K';
+            return num.toFixed(decimals);
+        }
+
+        // Format monetary values (values are in BRL thousands)
+        function formatMoney(num, decimals = 1) {
+            if (num === null || num === undefined || isNaN(num)) return '-';
+            // Values in spreadsheet are in thousands, so:
+            // 1,000,000 in sheet = 1 billion BRL
+            // 1,000 in sheet = 1 million BRL
+            // 1 in sheet = 1 thousand BRL
+            if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(decimals) + 'B';
+            if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(decimals) + 'M';
+            if (Math.abs(num) >= 1) return num.toFixed(decimals) + 'K';
+            return num.toFixed(decimals);
+        }
+
+        // Update period filters
+        function updateFilters() {
+            const sheetData = globalData[currentTab];
+            if (!sheetData || !sheetData.periods) return;
+
+            const periods = sheetData.periods;
+            const startSelect = document.getElementById('startPeriod');
+            const endSelect = document.getElementById('endPeriod');
+            
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+            
+            periods.forEach((p, idx) => {
+                const label = formatPeriod(p.value);
+                startSelect.innerHTML += `<option value="${idx}">${label}</option>`;
+                endSelect.innerHTML += `<option value="${idx}">${label}</option>`;
+            });
+            
+            const defaultStart = 0;  // Show all periods by default
+            startSelect.value = defaultStart;
+            endSelect.value = periods.length - 1;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            if (globalData[currentTab]) {
+                renderDashboard();
+            }
+        }
+
+        // Get filtered range
+        function getFilteredRange() {
+            const startIdx = parseInt(document.getElementById('startPeriod').value) || 0;
+            const endIdx = parseInt(document.getElementById('endPeriod').value) || 0;
+            return { startIdx: Math.min(startIdx, endIdx), endIdx: Math.max(startIdx, endIdx) };
+        }
+
+        // Filter data by range
+        function filterData(values, periods) {
+            const { startIdx, endIdx } = getFilteredRange();
+            return {
+                values: values.slice(startIdx, endIdx + 1),
+                periods: periods.slice(startIdx, endIdx + 1)
+            };
+        }
+
+        // Destroy charts
+        function destroyCharts() {
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            chartInstances = {};
+        }
+
+        // Create combo chart
+        function createComboChart(canvasId, labels, barData, lineData, barLabel, lineLabel, barColor, lineColor, isMonetary = true) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            
+            const formatter = isMonetary ? formatMoney : formatNumber;
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: barLabel,
+                            data: barData,
+                            backgroundColor: barColor + '80',
+                            borderColor: barColor,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            type: 'line',
+                            label: lineLabel,
+                            data: lineData,
+                            borderColor: lineColor,
+                            backgroundColor: lineColor + '20',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 1) {
+                                        return context.dataset.label + ': ' + (context.raw * 100).toFixed(1) + '%';
+                                    }
+                                    return context.dataset.label + ': ' + formatter(context.raw);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { position: 'left', grid: { color: '#2d3a5030' }, ticks: { callback: v => formatter(v, 0) } },
+                        y1: { position: 'right', grid: { display: false }, ticks: { callback: v => (v * 100).toFixed(0) + '%' } }
+                    }
+                }
+            });
+        }
+
+        // Create stacked bar chart (monetary values)
+        function createStackedBarChart(canvasId, labels, datasets) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v, 0) } }
+                    }
+                }
+            });
+        }
+
+        // Create dual line chart
+        function createDualLineChart(canvasId, labels, data1, data2, label1, label2, color1, color2, isPercentage = false) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: label1, data: data1, borderColor: color1, backgroundColor: color1 + '20', borderWidth: 2, pointRadius: 3, tension: 0.3, fill: true },
+                        { label: label2, data: data2, borderColor: color2, backgroundColor: color2 + '20', borderWidth: 2, pointRadius: 3, tension: 0.3, fill: true }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => isPercentage ? ctx.dataset.label + ': ' + (ctx.raw * 100).toFixed(2) + '%' : ctx.dataset.label + ': ' + formatMoney(ctx.raw)
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => isPercentage ? (v * 100).toFixed(1) + '%' : formatMoney(v, 0) } }
+                    }
+                }
+            });
+        }
+
+        // Create grouped bar chart (monetary values)
+        function createGroupedBarChart(canvasId, labels, datasets) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v, 0) } }
+                    }
+                }
+            });
+        }
+
+        // Create waterfall chart (monetary values)
+        function createWaterfallChart(canvasId, labels, values) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            let cumulative = 0;
+            const backgroundColors = [];
+            const borderColors = [];
+            const data = values.map((val, idx) => {
+                let color = (idx === 0 || idx === values.length - 1) ? colors.primary : (val >= 0 ? colors.success : colors.danger);
+                backgroundColors.push(color + '80');
+                borderColors.push(color);
+                if (idx === values.length - 1) return [0, val];
+                const start = cumulative;
+                cumulative += val;
+                return [start, cumulative];
+            });
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ data, backgroundColor: backgroundColors, borderColor: borderColors, borderWidth: 1, borderRadius: 4, borderSkipped: false }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => formatMoney(Array.isArray(ctx.raw) ? ctx.raw[1] - ctx.raw[0] : ctx.raw) } }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v, 0) } }
+                    }
+                }
+            });
+        }
+
+        // Render dashboard
+        function renderDashboard() {
+            destroyCharts();
+            const sheetData = globalData[currentTab];
+            if (!sheetData || !sheetData.data) return;
+
+            const content = document.getElementById('dashboardContent');
+            content.innerHTML = generateDashboardHTML();
+            populateCharts(sheetData);
+        }
+
+        // Generate dashboard HTML
+        function generateDashboardHTML() {
+            return `
+                <!-- Section 1: InfinitePay -->
+                <div class="section-header">
+                    <div class="section-icon acquiring"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M3 10h18v10H3V10zm0-2V4h18v4H3zm5 6h2v4H8v-4z"/></svg></div>
+                    <h2 class="section-title">InfinitePay (Acquiring)</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Card TPV</div><div class="chart-subtitle">Volume with YoY Growth %</div></div></div><div class="chart-container"><canvas id="chart1"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Card TPV Breakdown</div><div class="chart-subtitle">By merchant segment</div></div></div><div class="chart-container"><canvas id="chart2"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Credit vs Debit TPV</div><div class="chart-subtitle">100% stacked breakdown</div></div></div><div class="chart-container"><canvas id="chart3"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Anticipation Volume</div><div class="chart-subtitle">With % of TPV</div></div></div><div class="chart-container"><canvas id="chart3b"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Active Merchants</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chart4"></canvas></div></div>
+                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Take Rate Analysis</div><div class="chart-subtitle">Gross vs Net</div></div></div><div class="chart-container"><canvas id="chart5"></canvas></div></div>
+                </div>
+
+                <!-- Section 2: Banking -->
+                <div class="section-header">
+                    <div class="section-icon banking"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zM4 11v9h3v-9H4zm6 0v9h4v-9h-4zm7 0v9h3v-9h-3zM2 22h20v-1H2v1z"/></svg></div>
+                    <h2 class="section-title">InfiniteBank & InfiniteCard</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Customer Deposits</div><div class="chart-subtitle">Total over time</div></div></div><div class="chart-container"><canvas id="chart6"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Bank Accounts</div><div class="chart-subtitle">With % of acquiring merchants</div></div></div><div class="chart-container"><canvas id="chart7"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Issuing Metrics</div><div class="chart-subtitle">Float and yield</div></div></div><div class="chart-container"><canvas id="chart8"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Card Spend</div><div class="chart-subtitle">With % of bank accounts</div></div></div><div class="chart-container"><canvas id="chart9"></canvas></div></div>
+                </div>
+
+                <!-- Section 3: Lending -->
+                <div class="section-header">
+                    <div class="section-icon lending"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
+                    <h2 class="section-title">InfiniteCash (Lending)</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Portfolio</div><div class="chart-subtitle">Gross vs provisions</div></div></div><div class="chart-container"><canvas id="chart10"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Issuance</div><div class="chart-subtitle">Value and count</div></div></div><div class="chart-container"><canvas id="chart11"></canvas></div></div>
+                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Lending Profitability</div><div class="chart-subtitle">Interest and provisions</div></div></div><div class="chart-container"><canvas id="chart12"></canvas></div></div>
+                </div>
+
+                <!-- Section 3b: JIM.com -->
+                <div class="section-header">
+                    <div class="section-icon jim"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+                    <h2 class="section-title">JIM.com (US Operation)</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Cash-in TPV</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chartJim1"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Cash-out TPV</div><div class="chart-subtitle">Issuing + ACH breakdown</div></div></div><div class="chart-container"><canvas id="chartJim2"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Active Users</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chartJim3"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Customer Deposits</div><div class="chart-subtitle">Total over time</div></div></div><div class="chart-container"><canvas id="chartJim4"></canvas></div></div>
+                </div>
+
+                <!-- Section 4: Income Statement -->
+                <div class="section-header">
+                    <div class="section-icon income"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>
+                    <h2 class="section-title">Income Statement</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Revenue Composition</div><div class="chart-subtitle">By product</div></div></div><div class="chart-container"><canvas id="chart13"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Net Revenue</div><div class="chart-subtitle">With YoY growth</div></div></div><div class="chart-container"><canvas id="chart14"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Gross Profit</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart15"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">COS Analysis</div><div class="chart-subtitle">Breakdown</div></div></div><div class="chart-container"><canvas id="chart16"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">OPEX Analysis</div><div class="chart-subtitle">Breakdown</div></div></div><div class="chart-container"><canvas id="chart17"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">EBITDA</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart18"></canvas></div></div>
+                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Profitability Waterfall</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart19"></canvas></div></div>
+                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Net Income</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart20"></canvas></div></div>
+                </div>
+
+                <!-- Section 5: Balance Sheet -->
+                <div class="section-header">
+                    <div class="section-icon balance"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+                    <h2 class="section-title">Balance Sheet</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Assets</div><div class="chart-subtitle">Current vs Non-current</div></div></div><div class="chart-container"><canvas id="chart21"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Liabilities & Equity</div><div class="chart-subtitle">Structure</div></div></div><div class="chart-container"><canvas id="chart22"></canvas></div></div>
+                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Position</div><div class="chart-subtitle">With total</div></div></div><div class="chart-container"><canvas id="chart23"></canvas></div></div>
+                </div>
+
+                <!-- Section 6: Cash Flow -->
+                <div class="section-header">
+                    <div class="section-icon cashflow"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+                    <h2 class="section-title">Cash Flow</h2>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Cash Flow Breakdown</div><div class="chart-subtitle">Op, Inv, Fin</div></div></div><div class="chart-container"><canvas id="chart24"></canvas></div></div>
+                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Free Cash Flow</div><div class="chart-subtitle">FCFF breakdown</div></div></div><div class="chart-container"><canvas id="chart25"></canvas></div></div>
+                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Bridge</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart26"></canvas></div></div>
+                </div>
+            `;
+        }
+
+        // Populate all charts
+        function populateCharts(sheetData) {
+            // Chart 1: Card TPV
+            const cardTPV = getRowData(sheetData, 'Total card TPV');
+            const cardTPVGrowth = getSubRowData(sheetData, 'Total card TPV', '% YoY chg');
+            const f1 = filterData(cardTPV.values, cardTPV.periods);
+            const f1g = filterData(cardTPVGrowth.values, cardTPVGrowth.periods);
+            const labels = f1.periods.map(formatPeriod);
+            createComboChart('chart1', labels, f1.values, f1g.values, 'Card TPV', 'YoY %', colors.primary, colors.tertiary);
+
+            // Chart 2: Card TPV Breakdown
+            const smbs = getSubRowData(sheetData, 'Total card TPV', 'SMBs (POS CP)');
+            const micro = getSubRowData(sheetData, 'Total card TPV', 'Micro sellers (Tap CP)');
+            const ecom = getSubRowData(sheetData, 'Total card TPV', 'E-commerce');
+            createStackedBarChart('chart2', labels, [
+                { label: 'SMBs', data: filterData(smbs.values, smbs.periods).values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4 },
+                { label: 'Micro', data: filterData(micro.values, micro.periods).values, backgroundColor: colors.secondary + '80', borderColor: colors.secondary, borderWidth: 1, borderRadius: 4 },
+                { label: 'E-com', data: filterData(ecom.values, ecom.periods).values, backgroundColor: colors.tertiary + '80', borderColor: colors.tertiary, borderWidth: 1, borderRadius: 4 }
+            ]);
+
+            // Chart 3: Credit vs Debit TPV (100% Stacked)
+            const credit = getRowData(sheetData, 'Credit TPV');
+            const debit = getRowData(sheetData, 'Debit TPV');
+            const fCredit = filterData(credit.values, credit.periods);
+            const fDebit = filterData(debit.values, debit.periods);
+            
+            // Calculate percentages for 100% stacked
+            const creditPctData = fCredit.values.map((c, i) => {
+                const total = (c || 0) + (fDebit.values[i] || 0);
+                return total > 0 ? (c || 0) / total : 0;
+            });
+            const debitPctData = fDebit.values.map((d, i) => {
+                const total = (fCredit.values[i] || 0) + (d || 0);
+                return total > 0 ? (d || 0) / total : 0;
+            });
+            
+            const ctx3 = document.getElementById('chart3');
+            if (ctx3) {
+                chartInstances['chart3'] = new Chart(ctx3, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Credit', data: creditPctData, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4, stack: 's1' },
+                            { label: 'Debit', data: debitPctData, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4, stack: 's1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true, grid: { display: false } },
+                            y: { stacked: true, grid: { color: '#2d3a5030' }, min: 0, max: 1, ticks: { callback: v => (v*100).toFixed(0)+'%' } }
+                        },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true } },
+                            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.raw * 100).toFixed(1) + '%' } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 3b: Anticipation Volume
+            const anticipation = getRowData(sheetData, 'Anticipation vol');
+            const anticipationPct = getSubRowData(sheetData, 'Anticipation vol', '% of TPV');
+            const fAnticipation = filterData(anticipation.values, anticipation.periods);
+            const fAnticipationPct = filterData(anticipationPct.values, anticipationPct.periods);
+            createComboChart('chart3b', labels, fAnticipation.values, fAnticipationPct.values, 'Anticipation Vol', '% of TPV', colors.secondary, colors.warning);
+
+            // Chart 4: Active Merchants (count, not monetary)
+            const merchants = getRowData(sheetData, 'Total active merchants');
+            const merchGrowth = getSubRowData(sheetData, 'Total active merchants', '% YoY chg');
+            const fMerch = filterData(merchants.values, merchants.periods);
+            const fMerchG = filterData(merchGrowth.values, merchGrowth.periods);
+            createComboChart('chart4', labels, fMerch.values, fMerchG.values, 'Merchants', 'YoY %', colors.success, colors.warning, false);
+
+            // Chart 5: Take Rate
+            const grossRate = getRowData(sheetData, 'Gross take rate');
+            const netRate = getRowData(sheetData, 'Net take rate (pre-sales tax)');
+            const fGross = filterData(grossRate.values, grossRate.periods);
+            const fNet = filterData(netRate.values, netRate.periods);
+            createDualLineChart('chart5', labels, fGross.values, fNet.values, 'Gross', 'Net', colors.primary, colors.tertiary, true);
+
+            // Chart 6: Deposits
+            const deposits = getRowData(sheetData, 'Total customer deposits');
+            const fDep = filterData(deposits.values, deposits.periods);
+            const ctx6 = document.getElementById('chart6');
+            if (ctx6) {
+                chartInstances['chart6'] = new Chart(ctx6, {
+                    type: 'line',
+                    data: { labels, datasets: [{ label: 'Deposits', data: fDep.values, borderColor: colors.success, backgroundColor: colors.success + '30', borderWidth: 2, tension: 0.3, fill: true }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } } }, scales: { x: { grid: { display: false } }, y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v,0) } } } }
+                });
+            }
+
+            // Chart 7: Bank Accounts (count, not monetary)
+            const bankAcc = getRowData(sheetData, 'Total bank accounts, active merchants');
+            const pctAcq = getSubRowData(sheetData, 'Total bank accounts, active merchants', '% of total active acquiring merchants');
+            const fBank = filterData(bankAcc.values, bankAcc.periods);
+            const fPctAcq = filterData(pctAcq.values, pctAcq.periods);
+            createComboChart('chart7', labels, fBank.values, fPctAcq.values, 'Accounts', '% Merchants', colors.success, colors.warning, false);
+
+            // Chart 8: Issuing
+            const issFloat = getRowData(sheetData, 'Issuing float');
+            const yieldPct = getRowData(sheetData, '% yield ');
+            const fFloat = filterData(issFloat.values, issFloat.periods);
+            const fYield = filterData(yieldPct.values, yieldPct.periods);
+            createComboChart('chart8', labels, fFloat.values, fYield.values, 'Float', 'Yield %', colors.secondary, colors.success);
+
+            // Chart 9: Card Spend
+            const spend = getRowData(sheetData, 'Total card spend');
+            const cardPct = getSubRowData(sheetData, 'Total active cardholders', '% of total active bank accounts');
+            const fSpend = filterData(spend.values, spend.periods);
+            const fCardPct = filterData(cardPct.values, cardPct.periods);
+            createComboChart('chart9', labels, fSpend.values, fCardPct.values, 'Spend', '% Accounts', colors.tertiary, colors.success);
+
+            // Chart 10: Loan Portfolio
+            const grossLoans = getRowData(sheetData, 'Total loan balance, gross');
+            const provision = getRowData(sheetData, 'Loan loss provision');
+            const fLoans = filterData(grossLoans.values, grossLoans.periods);
+            const fProv = filterData(provision.values, provision.periods);
+            createStackedBarChart('chart10', labels, [
+                { label: 'Gross', data: fLoans.values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4 },
+                { label: 'Provision', data: fProv.values.map(v => v ? -Math.abs(v) : 0), backgroundColor: colors.danger + '80', borderColor: colors.danger, borderWidth: 1, borderRadius: 4 }
+            ]);
+
+            // Chart 11: Loan Issuance
+            const newLoans = getRowData(sheetData, 'New issued loans');
+            const numLoans = getRowData(sheetData, '# of new issued loans');
+            const fNew = filterData(newLoans.values, newLoans.periods);
+            const fNum = filterData(numLoans.values, numLoans.periods);
+            const ctx11 = document.getElementById('chart11');
+            if (ctx11) {
+                chartInstances['chart11'] = new Chart(ctx11, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Value', data: fNew.values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4, yAxisID: 'y' },
+                            { type: 'line', label: '# Loans', data: fNum.values, borderColor: colors.primary, borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v,0) } },
+                            y1: { position: 'right', grid: { display: false }, ticks: { callback: v => formatNumber(v,0) } }
+                        },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true } },
+                            tooltip: { callbacks: { label: ctx => ctx.datasetIndex === 1 ? ctx.dataset.label + ': ' + formatNumber(ctx.raw) : ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 12: Lending Profit
+            const intIncome = getRowData(sheetData, 'Interest income on loans');
+            const incrProv = getRowData(sheetData, 'Incremental loss provision');
+            const postProv = getRowData(sheetData, 'Interest income, post-provision');
+            createGroupedBarChart('chart12', labels, [
+                { label: 'Interest', data: filterData(intIncome.values, intIncome.periods).values, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4 },
+                { label: 'Provision', data: filterData(incrProv.values, incrProv.periods).values.map(v => v ? -Math.abs(v) : 0), backgroundColor: colors.danger + '80', borderColor: colors.danger, borderWidth: 1, borderRadius: 4 },
+                { label: 'Net', data: filterData(postProv.values, postProv.periods).values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4 }
+            ]);
+
+            // ========== JIM.com Section ==========
+            
+            // JIM Chart 1: Total Cash-in TPV
+            const jimCashIn = getRowData(sheetData, 'Total cash-in TPV');
+            const jimCashInGrowth = getSubRowData(sheetData, 'Total cash-in TPV', '% YoY chg');
+            const fJimCashIn = filterData(jimCashIn.values, jimCashIn.periods);
+            const fJimCashInG = filterData(jimCashInGrowth.values, jimCashInGrowth.periods);
+            createComboChart('chartJim1', labels, fJimCashIn.values, fJimCashInG.values, 'Cash-in TPV', 'YoY %', colors.cyan, colors.warning);
+
+            // JIM Chart 2: Total Cash-out TPV (stacked with line)
+            const jimCashOut = getRowData(sheetData, 'Total cash-out TPV');
+            const jimIssuing = getSubRowData(sheetData, 'Total cash-out TPV', 'Issuing TPV');
+            const jimACH = getSubRowData(sheetData, 'Total cash-out TPV', 'ACH cash-out');
+            const fJimCashOut = filterData(jimCashOut.values, jimCashOut.periods);
+            const fJimIssuing = filterData(jimIssuing.values, jimIssuing.periods);
+            const fJimACH = filterData(jimACH.values, jimACH.periods);
+            
+            const ctxJim2 = document.getElementById('chartJim2');
+            if (ctxJim2) {
+                chartInstances['chartJim2'] = new Chart(ctxJim2, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Issuing TPV', data: fJimIssuing.values, backgroundColor: colors.cyan + '80', borderColor: colors.cyan, borderWidth: 1, borderRadius: 4, stack: 's1' },
+                            { label: 'ACH Cash-out', data: fJimACH.values, backgroundColor: colors.orange + '80', borderColor: colors.orange, borderWidth: 1, borderRadius: 4, stack: 's1' },
+                            { type: 'line', label: 'Total', data: fJimCashOut.values, borderColor: colors.primary, borderWidth: 2, pointRadius: 3, tension: 0.3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true, grid: { display: false } },
+                            y: { stacked: true, grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v, 0) } }
+                        },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true } },
+                            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                        }
+                    }
+                });
+            }
+
+            // JIM Chart 3: Active Users
+            const jimUsers = getRowData(sheetData, 'Total active users');
+            const jimUsersGrowth = getSubRowData(sheetData, 'Total active users', '% YoY chg');
+            const fJimUsers = filterData(jimUsers.values, jimUsers.periods);
+            const fJimUsersG = filterData(jimUsersGrowth.values, jimUsersGrowth.periods);
+            createComboChart('chartJim3', labels, fJimUsers.values, fJimUsersG.values, 'Active Users', 'YoY %', colors.success, colors.warning, false);
+
+            // JIM Chart 4: Customer Deposits (area chart)
+            const jimDeposits = getRowByOccurrence(sheetData, 'Total customer deposits', 2);
+            const fJimDeposits = filterData(jimDeposits.values, jimDeposits.periods);
+            
+            const ctxJim4 = document.getElementById('chartJim4');
+            if (ctxJim4) {
+                chartInstances['chartJim4'] = new Chart(ctxJim4, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Deposits',
+                            data: fJimDeposits.values,
+                            borderColor: colors.cyan,
+                            backgroundColor: colors.cyan + '40',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v, 0) } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 13: Revenue Composition
+            const revComps = getComponentsBetween(sheetData, 'Net revenue by product', 'Net revenue, total');
+            if (revComps.length > 0) {
+                createStackedBarChart('chart13', labels, revComps.map((c, i) => ({
+                    label: c.label, data: filterData(c.values, cardTPV.periods).values,
+                    backgroundColor: colorArray[i % colorArray.length] + '80',
+                    borderColor: colorArray[i % colorArray.length], borderWidth: 1, borderRadius: 4
+                })));
+            }
+
+            // Chart 14: Net Revenue
+            const netRev = getRowData(sheetData, 'Net revenue, total');
+            const revGrowth = getRowData(sheetData, '% YoY growth');
+            const fRev = filterData(netRev.values, netRev.periods);
+            const fRevG = filterData(revGrowth.values, revGrowth.periods);
+            createComboChart('chart14', labels, fRev.values, fRevG.values, 'Revenue', 'YoY %', colors.primary, colors.tertiary);
+
+            // Chart 15: Gross Profit
+            const grossProfit = getRowData(sheetData, 'Gross profit');
+            const grossMargin = getRowData(sheetData, '% of net revenue');
+            const fGP = filterData(grossProfit.values, grossProfit.periods);
+            const fGM = filterData(grossMargin.values, grossMargin.periods);
+            createComboChart('chart15', labels, fGP.values, fGM.values, 'Profit', 'Margin %', colors.success, colors.warning);
+
+            // Chart 16: COS
+            const cosComps = getComponentsBetween(sheetData, 'Cost of service', 'Total COS');
+            if (cosComps.length > 0) {
+                createStackedBarChart('chart16', labels, cosComps.map((c, i) => ({
+                    label: c.label, data: filterData(c.values, cardTPV.periods).values.map(v => v ? Math.abs(v) : 0),
+                    backgroundColor: colorArray[i % colorArray.length] + '80',
+                    borderColor: colorArray[i % colorArray.length], borderWidth: 1, borderRadius: 4
+                })));
+            }
+
+            // Chart 17: OPEX
+            const opexComps = getComponentsBetween(sheetData, 'OPEX', 'Total OPEX');
+            if (opexComps.length > 0) {
+                createStackedBarChart('chart17', labels, opexComps.map((c, i) => ({
+                    label: c.label, data: filterData(c.values, cardTPV.periods).values.map(v => v ? Math.abs(v) : 0),
+                    backgroundColor: colorArray[i % colorArray.length] + '80',
+                    borderColor: colorArray[i % colorArray.length], borderWidth: 1, borderRadius: 4
+                })));
+            }
+
+            // Chart 18: EBITDA
+            const ebitda = getRowData(sheetData, 'EBITDA');
+            const ebitdaMargin = getRowData(sheetData, '% of net revenue less funding cost');
+            const fEBIT = filterData(ebitda.values, ebitda.periods);
+            const fEBITM = filterData(ebitdaMargin.values, ebitdaMargin.periods);
+            createComboChart('chart18', labels, fEBIT.values, fEBITM.values, 'EBITDA', 'Margin %', colors.secondary, colors.success);
+
+            // Chart 19: Waterfall
+            const totalCOS = getRowData(sheetData, 'Total COS');
+            const totalOPEX = getRowData(sheetData, 'Total OPEX');
+            const totalFin = getRowData(sheetData, 'Total financial expenses');
+            const netIncome = getRowData(sheetData, 'Net income (loss) ');
+            const lastIdx = fRev.values.length - 1;
+            createWaterfallChart('chart19', ['Revenue', 'COS', 'OPEX', 'Fin Exp', 'Net Income'], [
+                fRev.values[lastIdx] || 0,
+                -(Math.abs(filterData(totalCOS.values, totalCOS.periods).values[lastIdx]) || 0),
+                -(Math.abs(filterData(totalOPEX.values, totalOPEX.periods).values[lastIdx]) || 0),
+                -(Math.abs(filterData(totalFin.values, totalFin.periods).values[lastIdx]) || 0),
+                filterData(netIncome.values, netIncome.periods).values[lastIdx] || 0
+            ]);
+
+            // Chart 20: Net Income
+            const niMargin = getRowAfterLabel(sheetData, 'Net income (loss) ', 2);
+            const fNI = filterData(netIncome.values, netIncome.periods);
+            const fNIM = filterData(niMargin.values, niMargin.periods);
+            createComboChart('chart20', labels, fNI.values, fNIM.values, 'Net Income', 'Margin %', colors.success, colors.tertiary);
+
+            // Chart 21: Assets
+            const curAssets = getRowData(sheetData, 'Current assets');
+            const nonCurAssets = getRowData(sheetData, 'Non-current assets');
+            createStackedBarChart('chart21', labels, [
+                { label: 'Current', data: filterData(curAssets.values, curAssets.periods).values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4 },
+                { label: 'Non-current', data: filterData(nonCurAssets.values, nonCurAssets.periods).values, backgroundColor: colors.secondary + '80', borderColor: colors.secondary, borderWidth: 1, borderRadius: 4 }
+            ]);
+
+            // Chart 22: Liabilities
+            const curLiab = getRowData(sheetData, 'Current Liabilities');
+            const nonCurLiab = getRowData(sheetData, 'Non-current liabilities');
+            const equity = getRowData(sheetData, 'Equity');
+            createStackedBarChart('chart22', labels, [
+                { label: 'Current Liab', data: filterData(curLiab.values, curLiab.periods).values, backgroundColor: colors.danger + '80', borderColor: colors.danger, borderWidth: 1, borderRadius: 4 },
+                { label: 'Non-current Liab', data: filterData(nonCurLiab.values, nonCurLiab.periods).values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4 },
+                { label: 'Equity', data: filterData(equity.values, equity.periods).values, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4 }
+            ]);
+
+            // Chart 23: Cash Position
+            const cash = getRowData(sheetData, 'Cash and Cash Equivalents');
+            const restCash = getRowData(sheetData, 'Restricted Cash');
+            const invest = getRowData(sheetData, 'Investments');
+            const fCash = filterData(cash.values, cash.periods);
+            const fRest = filterData(restCash.values, restCash.periods);
+            const fInv = filterData(invest.values, invest.periods);
+            const totalCash = fCash.values.map((v,i) => (v||0) + (fRest.values[i]||0) + (fInv.values[i]||0));
+            const ctx23 = document.getElementById('chart23');
+            if (ctx23) {
+                chartInstances['chart23'] = new Chart(ctx23, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Cash', data: fCash.values, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4, stack: 's1' },
+                            { label: 'Restricted', data: fRest.values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4, stack: 's1' },
+                            { label: 'Investments', data: fInv.values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4, stack: 's1' },
+                            { type: 'line', label: 'Total', data: totalCash, borderColor: colors.tertiary, borderWidth: 2, pointRadius: 4, tension: 0.3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v,0) } } },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true } },
+                            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 24: Cash Flow
+            const cfOp = getCashFlowRow(sheetData, 'Cash flow from operating activities', 2);
+            const cfInv = getCashFlowRow(sheetData, 'Cash flow from investing activities', 2);
+            const cfFin = getCashFlowRow(sheetData, 'Cash flow from financing activities', 2);
+            createGroupedBarChart('chart24', labels, [
+                { label: 'Operating', data: filterData(cfOp.values, cfOp.periods).values, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4 },
+                { label: 'Investing', data: filterData(cfInv.values, cfInv.periods).values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4 },
+                { label: 'Financing', data: filterData(cfFin.values, cfFin.periods).values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4 }
+            ]);
+
+            // Chart 25: FCF
+            const ebitdaFCF = getRowData(sheetData, 'EBITDA*');
+            const capex = getRowData(sheetData, '(-) CAPEX');
+            const taxes = getRowData(sheetData, '(-) Taxes');
+            const wc = getRowData(sheetData, '(-) Δ Working Capital');
+            const fcff = getRowData(sheetData, 'FCFF*');
+            const ctx25 = document.getElementById('chart25');
+            if (ctx25) {
+                chartInstances['chart25'] = new Chart(ctx25, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'EBITDA', data: filterData(ebitdaFCF.values, ebitdaFCF.periods).values, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4 },
+                            { label: 'CAPEX', data: filterData(capex.values, capex.periods).values, backgroundColor: colors.danger + '80', borderColor: colors.danger, borderWidth: 1, borderRadius: 4 },
+                            { label: 'Taxes', data: filterData(taxes.values, taxes.periods).values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4 },
+                            { label: 'ΔWC', data: filterData(wc.values, wc.periods).values, backgroundColor: colors.secondary + '80', borderColor: colors.secondary, borderWidth: 1, borderRadius: 4 },
+                            { type: 'line', label: 'FCFF', data: filterData(fcff.values, fcff.periods).values, borderColor: colors.primary, borderWidth: 3, pointRadius: 4, tension: 0.3 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { x: { grid: { display: false } }, y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v,0) } } },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
+                            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + formatMoney(ctx.raw) } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 26: Cash Bridge
+            const cashBoP = getRowData(sheetData, 'Cash BoP');
+            const cashEoP = getRowData(sheetData, 'Cash EoP');
+            const fx = getRowData(sheetData, 'Fx effect on cash and cash equivalents');
+            const fCFOp = filterData(cfOp.values, cfOp.periods);
+            const fCFInv = filterData(cfInv.values, cfInv.periods);
+            const fCFFin = filterData(cfFin.values, cfFin.periods);
+            createWaterfallChart('chart26', ['BoP', 'Operating', 'Investing', 'Financing', 'FX', 'EoP'], [
+                filterData(cashBoP.values, cashBoP.periods).values[lastIdx] || 0,
+                fCFOp.values[lastIdx] || 0,
+                fCFInv.values[lastIdx] || 0,
+                fCFFin.values[lastIdx] || 0,
+                filterData(fx.values, fx.periods).values[lastIdx] || 0,
+                filterData(cashEoP.values, cashEoP.periods).values[lastIdx] || 0
+            ]);
+        }
+    </script>
+</body>
+</html>
