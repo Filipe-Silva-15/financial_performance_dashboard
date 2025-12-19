@@ -94,7 +94,7 @@
         .section-icon.cashflow { background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%); }
         .section-title { font-size: 18px; font-weight: 700; }
         .charts-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            display: grid; grid-template-columns: repeat(2, 1fr);
             gap: 24px; margin-bottom: 20px;
         }
         .chart-card {
@@ -134,7 +134,7 @@
         .empty-icon svg { width: 40px; height: 40px; color: var(--text-muted); }
         .empty-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
         .empty-text { color: var(--text-secondary); font-size: 14px; max-width: 400px; }
-        @media (max-width: 768px) {
+        @media (max-width: 1000px) {
             .header { flex-direction: column; gap: 20px; align-items: flex-start; }
             .charts-grid { grid-template-columns: 1fr; }
         }
@@ -1171,11 +1171,11 @@
                 });
             }
 
-            // Chart 24: Cash Flow
+            // Chart 24: Cash Flow (Stacked)
             const cfOp = getCashFlowRow(sheetData, 'Cash flow from operating activities', 2);
             const cfInv = getCashFlowRow(sheetData, 'Cash flow from investing activities', 2);
             const cfFin = getCashFlowRow(sheetData, 'Cash flow from financing activities', 2);
-            createGroupedBarChart('chart24', labels, [
+            createStackedBarChart('chart24', labels, [
                 { label: 'Operating', data: filterData(cfOp.values, cfOp.periods).values, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4 },
                 { label: 'Investing', data: filterData(cfInv.values, cfInv.periods).values, backgroundColor: colors.warning + '80', borderColor: colors.warning, borderWidth: 1, borderRadius: 4 },
                 { label: 'Financing', data: filterData(cfFin.values, cfFin.periods).values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4 }
