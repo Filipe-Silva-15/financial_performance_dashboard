@@ -96,6 +96,7 @@
         .section-icon.income { background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); }
         .section-icon.balance { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
         .section-icon.cashflow { background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%); }
+        .section-icon.profitability { background: linear-gradient(135deg, #14b8a6 0%, #5eead4 100%); }
         .section-title { font-size: 18px; font-weight: 700; }
         .charts-grid {
             display: grid; grid-template-columns: repeat(2, 1fr);
@@ -186,6 +187,7 @@
             <button class="tab-btn" data-section="income" onclick="switchSection('income')">Income Statement</button>
             <button class="tab-btn" data-section="balance" onclick="switchSection('balance')">Balance Sheet</button>
             <button class="tab-btn" data-section="cashflow" onclick="switchSection('cashflow')">Cash Flow</button>
+            <button class="tab-btn" data-section="profitability" onclick="switchSection('profitability')">Profitability</button>
         </div>
 
         <div class="filters-container">
@@ -859,6 +861,21 @@
                         <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Bridge</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart26"></canvas></div></div>
                     </div>
                 </div>
+
+                <!-- Section 8: Profitability -->
+                <div class="dashboard-section visible" data-section="profitability">
+                    <div class="section-header">
+                        <div class="section-icon profitability"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg></div>
+                        <h2 class="section-title">Profitability</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Annualized ROE</div><div class="chart-subtitle">Return on Equity</div></div></div><div class="chart-container"><canvas id="chartProf1"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">ROE DuPont Analysis</div><div class="chart-subtitle">Margin × Turnover × Leverage</div></div></div><div class="chart-container"><canvas id="chartProf2"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Annualized ROA</div><div class="chart-subtitle">Return on Assets</div></div></div><div class="chart-container"><canvas id="chartProf3"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">ROA DuPont Analysis</div><div class="chart-subtitle">Margin × Turnover</div></div></div><div class="chart-container"><canvas id="chartProf4"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cost-to-Income Ratio</div><div class="chart-subtitle">Operating efficiency</div></div></div><div class="chart-container"><canvas id="chartProf5"></canvas></div></div>
+                    </div>
+                </div>
             `;
         }
 
@@ -1296,6 +1313,263 @@
                 filterData(fx.values, fx.periods).values[lastIdx] || 0,
                 filterData(cashEoP.values, cashEoP.periods).values[lastIdx] || 0
             ]);
+
+            // ========== Profitability Section ==========
+            
+            // Get raw data for profitability calculations
+            const profNetIncome = getRowData(sheetData, 'Net income (loss) ');
+            const profEquity = getRowData(sheetData, 'Equity');
+            const profAssets = getRowData(sheetData, 'Assets');
+            const profRevenue = getRowData(sheetData, 'Net revenue, total');
+            const profCOS = getRowData(sheetData, 'Total COS');
+            const profOPEX = getRowData(sheetData, 'Total OPEX');
+            const profFinExp = getRowData(sheetData, 'Total financial expenses');
+            
+            // Filter data
+            const fProfNI = filterData(profNetIncome.values, profNetIncome.periods);
+            const fProfEq = filterData(profEquity.values, profEquity.periods);
+            const fProfAssets = filterData(profAssets.values, profAssets.periods);
+            const fProfRev = filterData(profRevenue.values, profRevenue.periods);
+            const fProfCOS = filterData(profCOS.values, profCOS.periods);
+            const fProfOPEX = filterData(profOPEX.values, profOPEX.periods);
+            const fProfFinExp = filterData(profFinExp.values, profFinExp.periods);
+            
+            // Determine annualization multiplier
+            const annMultiplier = currentTab === 'monthly' ? 12 : (currentTab === 'quarterly' ? 4 : 1);
+            
+            // Calculate derived metrics
+            const roeData = [];
+            const roaData = [];
+            const netMarginData = [];
+            const assetTurnoverData = [];
+            const finLeverageData = [];
+            const opExpensesData = [];
+            const opIncomeData = [];
+            const costToIncomeData = [];
+            
+            for (let i = 0; i < fProfNI.values.length; i++) {
+                const ni = fProfNI.values[i] || 0;
+                const eqCurr = fProfEq.values[i] || 0;
+                const eqPrev = i > 0 ? (fProfEq.values[i-1] || 0) : eqCurr;
+                const eqAvg = (eqCurr + eqPrev) / 2;
+                
+                const assetsCurr = fProfAssets.values[i] || 0;
+                const assetsPrev = i > 0 ? (fProfAssets.values[i-1] || 0) : assetsCurr;
+                const assetsAvg = (assetsCurr + assetsPrev) / 2;
+                
+                const rev = fProfRev.values[i] || 0;
+                const cos = Math.abs(fProfCOS.values[i] || 0);
+                const opex = Math.abs(fProfOPEX.values[i] || 0);
+                const finExp = fProfFinExp.values[i] || 0;
+                
+                // Annualized Net Income
+                const annNI = ni * annMultiplier;
+                
+                // ROE
+                const roe = eqAvg !== 0 ? annNI / eqAvg : 0;
+                roeData.push(roe);
+                
+                // ROA
+                const roa = assetsAvg !== 0 ? annNI / assetsAvg : 0;
+                roaData.push(roa);
+                
+                // DuPont components
+                const netMargin = rev !== 0 ? ni / rev : 0;
+                const annRev = rev * annMultiplier;
+                const assetTurnover = assetsAvg !== 0 ? annRev / assetsAvg : 0;
+                const finLeverage = eqAvg !== 0 ? assetsAvg / eqAvg : 0;
+                
+                netMarginData.push(netMargin);
+                assetTurnoverData.push(assetTurnover);
+                finLeverageData.push(finLeverage);
+                
+                // Cost-to-Income
+                const opExpenses = cos + opex;
+                const opIncome = rev + finExp; // finExp is negative
+                const cti = Math.abs(opIncome) !== 0 ? opExpenses / Math.abs(opIncome) : 0;
+                
+                opExpensesData.push(opExpenses);
+                opIncomeData.push(Math.abs(opIncome));
+                costToIncomeData.push(cti);
+            }
+            
+            // Chart Prof1: Annualized ROE (Area)
+            const ctxProf1 = document.getElementById('chartProf1');
+            if (ctxProf1) {
+                chartInstances['chartProf1'] = new Chart(ctxProf1, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'ROE',
+                            data: roeData,
+                            borderColor: colors.success,
+                            backgroundColor: colors.success + '40',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => 'ROE: ' + (ctx.raw * 100).toFixed(2) + '%' } }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => (v * 100).toFixed(0) + '%' } }
+                        }
+                    }
+                });
+            }
+            
+            // Chart Prof2: ROE DuPont (Line with 4 series)
+            const ctxProf2 = document.getElementById('chartProf2');
+            if (ctxProf2) {
+                chartInstances['chartProf2'] = new Chart(ctxProf2, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Net Margin', data: netMarginData, borderColor: colors.primary, borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+                            { label: 'Asset Turnover', data: assetTurnoverData, borderColor: colors.warning, borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+                            { label: 'Fin. Leverage', data: finLeverageData, borderColor: colors.tertiary, borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y1' },
+                            { label: 'ROE', data: roeData, borderColor: colors.success, borderWidth: 3, tension: 0.3, pointRadius: 3, yAxisID: 'y' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
+                            tooltip: { 
+                                callbacks: { 
+                                    label: ctx => {
+                                        if (ctx.dataset.label === 'Net Margin' || ctx.dataset.label === 'ROE') {
+                                            return ctx.dataset.label + ': ' + (ctx.raw * 100).toFixed(2) + '%';
+                                        }
+                                        return ctx.dataset.label + ': ' + ctx.raw.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { position: 'left', grid: { color: '#2d3a5030' }, ticks: { callback: v => (v * 100).toFixed(0) + '%' } },
+                            y1: { position: 'right', grid: { display: false }, ticks: { callback: v => v.toFixed(1) } }
+                        }
+                    }
+                });
+            }
+            
+            // Chart Prof3: Annualized ROA (Area)
+            const ctxProf3 = document.getElementById('chartProf3');
+            if (ctxProf3) {
+                chartInstances['chartProf3'] = new Chart(ctxProf3, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'ROA',
+                            data: roaData,
+                            borderColor: colors.cyan,
+                            backgroundColor: colors.cyan + '40',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => 'ROA: ' + (ctx.raw * 100).toFixed(2) + '%' } }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { color: '#2d3a5030' }, ticks: { callback: v => (v * 100).toFixed(0) + '%' } }
+                        }
+                    }
+                });
+            }
+            
+            // Chart Prof4: ROA DuPont (Line with 3 series)
+            const ctxProf4 = document.getElementById('chartProf4');
+            if (ctxProf4) {
+                chartInstances['chartProf4'] = new Chart(ctxProf4, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Net Margin', data: netMarginData, borderColor: colors.primary, borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+                            { label: 'Asset Turnover', data: assetTurnoverData, borderColor: colors.warning, borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+                            { label: 'ROA', data: roaData, borderColor: colors.cyan, borderWidth: 3, tension: 0.3, pointRadius: 3, yAxisID: 'y' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
+                            tooltip: { 
+                                callbacks: { 
+                                    label: ctx => {
+                                        if (ctx.dataset.label === 'Net Margin' || ctx.dataset.label === 'ROA') {
+                                            return ctx.dataset.label + ': ' + (ctx.raw * 100).toFixed(2) + '%';
+                                        }
+                                        return ctx.dataset.label + ': ' + ctx.raw.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { position: 'left', grid: { color: '#2d3a5030' }, ticks: { callback: v => (v * 100).toFixed(0) + '%' } }
+                        }
+                    }
+                });
+            }
+            
+            // Chart Prof5: Cost-to-Income (Combo)
+            const ctxProf5 = document.getElementById('chartProf5');
+            if (ctxProf5) {
+                chartInstances['chartProf5'] = new Chart(ctxProf5, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Op. Expenses', data: opExpensesData, backgroundColor: colors.danger + '80', borderColor: colors.danger, borderWidth: 1, borderRadius: 4, yAxisID: 'y' },
+                            { label: 'Op. Income', data: opIncomeData, backgroundColor: colors.success + '80', borderColor: colors.success, borderWidth: 1, borderRadius: 4, yAxisID: 'y' },
+                            { type: 'line', label: 'Cost-to-Income', data: costToIncomeData, borderColor: colors.primary, borderWidth: 2, pointRadius: 3, tension: 0.3, yAxisID: 'y1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { 
+                            legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
+                            tooltip: { 
+                                callbacks: { 
+                                    label: ctx => {
+                                        if (ctx.dataset.label === 'Cost-to-Income') {
+                                            return ctx.dataset.label + ': ' + (ctx.raw * 100).toFixed(1) + '%';
+                                        }
+                                        return ctx.dataset.label + ': ' + formatMoney(ctx.raw);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { position: 'left', grid: { color: '#2d3a5030' }, ticks: { callback: v => formatMoney(v, 0) } },
+                            y1: { position: 'right', grid: { display: false }, ticks: { callback: v => (v * 100).toFixed(0) + '%' } }
+                        }
+                    }
+                });
+            }
         }
     </script>
 </body>
