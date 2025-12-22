@@ -70,6 +70,10 @@
             box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
         }
         .tab-btn:hover:not(.active) { background: var(--bg-card); color: var(--text-primary); }
+        .section-tabs { margin-top: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+        .section-tabs .tab-btn { padding: 10px 20px; font-size: 13px; }
+        .dashboard-section { display: none; }
+        .dashboard-section.visible { display: block; }
         .filters-container { display: flex; gap: 16px; margin-bottom: 32px; align-items: center; }
         .filter-group { display: flex; align-items: center; gap: 10px; }
         .filter-label { color: var(--text-secondary); font-size: 13px; font-weight: 500; }
@@ -80,7 +84,7 @@
         }
         .filter-select:focus { outline: none; border-color: var(--accent-primary); }
         .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; margin-top: 40px; }
-        .section-header:first-of-type { margin-top: 0; }
+        .dashboard-section.first-visible .section-header { margin-top: 0; }
         .section-icon {
             width: 40px; height: 40px; border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
@@ -173,6 +177,17 @@
             <button class="tab-btn" data-tab="yearly" onclick="switchTab('yearly')">Annual</button>
         </div>
 
+        <div class="tabs-container section-tabs">
+            <button class="tab-btn active" data-section="all" onclick="switchSection('all')">All Sections</button>
+            <button class="tab-btn" data-section="acquiring" onclick="switchSection('acquiring')">Acquiring</button>
+            <button class="tab-btn" data-section="banking" onclick="switchSection('banking')">Banking</button>
+            <button class="tab-btn" data-section="lending" onclick="switchSection('lending')">Lending</button>
+            <button class="tab-btn" data-section="jim" onclick="switchSection('jim')">JIM.com</button>
+            <button class="tab-btn" data-section="income" onclick="switchSection('income')">Income Statement</button>
+            <button class="tab-btn" data-section="balance" onclick="switchSection('balance')">Balance Sheet</button>
+            <button class="tab-btn" data-section="cashflow" onclick="switchSection('cashflow')">Cash Flow</button>
+        </div>
+
         <div class="filters-container">
             <div class="filter-group">
                 <span class="filter-label">From:</span>
@@ -205,6 +220,7 @@
             yearly: null
         };
         let currentTab = 'monthly';
+        let currentSection = 'all';
         let chartInstances = {};
 
         // Color palette
@@ -230,7 +246,7 @@
         // Tab switching
         function switchTab(tab) {
             currentTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(btn => {
+            document.querySelectorAll('.tabs-container:not(.section-tabs) .tab-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.tab === tab);
             });
             
@@ -239,6 +255,37 @@
                 updateFilters();
                 renderDashboard();
             }
+        }
+
+        // Section switching
+        function switchSection(section) {
+            currentSection = section;
+            document.querySelectorAll('.section-tabs .tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.section === section);
+            });
+            updateSectionVisibility();
+        }
+
+        // Update section visibility
+        function updateSectionVisibility() {
+            let firstVisible = true;
+            document.querySelectorAll('.dashboard-section').forEach(sec => {
+                sec.classList.remove('first-visible');
+                if (currentSection === 'all') {
+                    sec.classList.add('visible');
+                    if (firstVisible) {
+                        sec.classList.add('first-visible');
+                        firstVisible = false;
+                    }
+                } else {
+                    const isMatch = sec.dataset.section === currentSection;
+                    sec.classList.toggle('visible', isMatch);
+                    if (isMatch && firstVisible) {
+                        sec.classList.add('first-visible');
+                        firstVisible = false;
+                    }
+                }
+            });
         }
 
         // File upload handler
@@ -705,96 +752,111 @@
             const content = document.getElementById('dashboardContent');
             content.innerHTML = generateDashboardHTML();
             populateCharts(sheetData);
+            updateSectionVisibility();
         }
 
         // Generate dashboard HTML
         function generateDashboardHTML() {
             return `
                 <!-- Section 1: InfinitePay -->
-                <div class="section-header">
-                    <div class="section-icon acquiring"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M3 10h18v10H3V10zm0-2V4h18v4H3zm5 6h2v4H8v-4z"/></svg></div>
-                    <h2 class="section-title">InfinitePay (Acquiring)</h2>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Card TPV</div><div class="chart-subtitle">Volume with YoY Growth %</div></div></div><div class="chart-container"><canvas id="chart1"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Card TPV Breakdown</div><div class="chart-subtitle">By merchant segment</div></div></div><div class="chart-container"><canvas id="chart2"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Credit vs Debit TPV</div><div class="chart-subtitle">100% stacked breakdown</div></div></div><div class="chart-container"><canvas id="chart3"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Anticipation Volume</div><div class="chart-subtitle">With % of TPV</div></div></div><div class="chart-container"><canvas id="chart3b"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Active Merchants</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chart4"></canvas></div></div>
-                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Take Rate Analysis</div><div class="chart-subtitle">Gross vs Net</div></div></div><div class="chart-container"><canvas id="chart5"></canvas></div></div>
+                <div class="dashboard-section visible" data-section="acquiring">
+                    <div class="section-header">
+                        <div class="section-icon acquiring"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M3 10h18v10H3V10zm0-2V4h18v4H3zm5 6h2v4H8v-4z"/></svg></div>
+                        <h2 class="section-title">InfinitePay (Acquiring)</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Card TPV</div><div class="chart-subtitle">Volume with YoY Growth %</div></div></div><div class="chart-container"><canvas id="chart1"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Card TPV Breakdown</div><div class="chart-subtitle">By merchant segment</div></div></div><div class="chart-container"><canvas id="chart2"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Credit vs Debit TPV</div><div class="chart-subtitle">100% stacked breakdown</div></div></div><div class="chart-container"><canvas id="chart3"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Anticipation Volume</div><div class="chart-subtitle">With % of TPV</div></div></div><div class="chart-container"><canvas id="chart3b"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Active Merchants</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chart4"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Take Rate Analysis</div><div class="chart-subtitle">Gross vs Net</div></div></div><div class="chart-container"><canvas id="chart5"></canvas></div></div>
+                    </div>
                 </div>
 
                 <!-- Section 2: Banking -->
-                <div class="section-header">
-                    <div class="section-icon banking"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zM4 11v9h3v-9H4zm6 0v9h4v-9h-4zm7 0v9h3v-9h-3zM2 22h20v-1H2v1z"/></svg></div>
-                    <h2 class="section-title">InfiniteBank & InfiniteCard</h2>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Customer Deposits</div><div class="chart-subtitle">Total over time</div></div></div><div class="chart-container"><canvas id="chart6"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Bank Accounts</div><div class="chart-subtitle">With % of acquiring merchants</div></div></div><div class="chart-container"><canvas id="chart7"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Issuing Metrics</div><div class="chart-subtitle">Float and yield</div></div></div><div class="chart-container"><canvas id="chart8"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Card Spend</div><div class="chart-subtitle">With % of bank accounts</div></div></div><div class="chart-container"><canvas id="chart9"></canvas></div></div>
+                <div class="dashboard-section visible" data-section="banking">
+                    <div class="section-header">
+                        <div class="section-icon banking"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zM4 11v9h3v-9H4zm6 0v9h4v-9h-4zm7 0v9h3v-9h-3zM2 22h20v-1H2v1z"/></svg></div>
+                        <h2 class="section-title">InfiniteBank & InfiniteCard</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Customer Deposits</div><div class="chart-subtitle">Total over time</div></div></div><div class="chart-container"><canvas id="chart6"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Bank Accounts</div><div class="chart-subtitle">With % of acquiring merchants</div></div></div><div class="chart-container"><canvas id="chart7"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Issuing Metrics</div><div class="chart-subtitle">Float and yield</div></div></div><div class="chart-container"><canvas id="chart8"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Card Spend</div><div class="chart-subtitle">With % of bank accounts</div></div></div><div class="chart-container"><canvas id="chart9"></canvas></div></div>
+                    </div>
                 </div>
 
                 <!-- Section 3: Lending -->
-                <div class="section-header">
-                    <div class="section-icon lending"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
-                    <h2 class="section-title">InfiniteCash (Lending)</h2>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Portfolio</div><div class="chart-subtitle">Gross vs provisions</div></div></div><div class="chart-container"><canvas id="chart10"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Issuance</div><div class="chart-subtitle">Value and count</div></div></div><div class="chart-container"><canvas id="chart11"></canvas></div></div>
-                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Lending Profitability</div><div class="chart-subtitle">Interest and provisions</div></div></div><div class="chart-container"><canvas id="chart12"></canvas></div></div>
-                </div>
-
-                <!-- Section 3b: JIM.com -->
-                <div class="section-header">
-                    <div class="section-icon jim"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
-                    <h2 class="section-title">JIM.com (US Operation)</h2>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Cash-in TPV</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chartJim1"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Cash-out TPV</div><div class="chart-subtitle">Issuing + ACH breakdown</div></div></div><div class="chart-container"><canvas id="chartJim2"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Active Users</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chartJim3"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Customer Deposits</div><div class="chart-subtitle">Total over time</div></div></div><div class="chart-container"><canvas id="chartJim4"></canvas></div></div>
+                <div class="dashboard-section visible" data-section="lending">
+                    <div class="section-header">
+                        <div class="section-icon lending"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
+                        <h2 class="section-title">InfiniteCash (Lending)</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Portfolio</div><div class="chart-subtitle">Gross vs provisions</div></div></div><div class="chart-container"><canvas id="chart10"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Issuance</div><div class="chart-subtitle">Value and count</div></div></div><div class="chart-container"><canvas id="chart11"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Lending Profitability</div><div class="chart-subtitle">Interest and provisions</div></div></div><div class="chart-container"><canvas id="chart12"></canvas></div></div>
+                    </div>
                 </div>
 
-                <!-- Section 4: Income Statement -->
-                <div class="section-header">
-                    <div class="section-icon income"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>
-                    <h2 class="section-title">Income Statement</h2>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Revenue Composition</div><div class="chart-subtitle">By product</div></div></div><div class="chart-container"><canvas id="chart13"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Net Revenue</div><div class="chart-subtitle">With YoY growth</div></div></div><div class="chart-container"><canvas id="chart14"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Gross Profit</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart15"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">COS Analysis</div><div class="chart-subtitle">Breakdown</div></div></div><div class="chart-container"><canvas id="chart16"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">OPEX Analysis</div><div class="chart-subtitle">Breakdown</div></div></div><div class="chart-container"><canvas id="chart17"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">EBITDA</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart18"></canvas></div></div>
-                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Profitability Waterfall</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart19"></canvas></div></div>
-                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Net Income</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart20"></canvas></div></div>
+                <!-- Section 4: JIM.com -->
+                <div class="dashboard-section visible" data-section="jim">
+                    <div class="section-header">
+                        <div class="section-icon jim"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+                        <h2 class="section-title">JIM.com (US Operation)</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Cash-in TPV</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chartJim1"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Total Cash-out TPV</div><div class="chart-subtitle">Issuing + ACH breakdown</div></div></div><div class="chart-container"><canvas id="chartJim2"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Active Users</div><div class="chart-subtitle">With YoY Growth %</div></div></div><div class="chart-container"><canvas id="chartJim3"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Customer Deposits</div><div class="chart-subtitle">Total over time</div></div></div><div class="chart-container"><canvas id="chartJim4"></canvas></div></div>
+                    </div>
                 </div>
 
-                <!-- Section 5: Balance Sheet -->
-                <div class="section-header">
-                    <div class="section-icon balance"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
-                    <h2 class="section-title">Balance Sheet</h2>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Assets</div><div class="chart-subtitle">Current vs Non-current</div></div></div><div class="chart-container"><canvas id="chart21"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Liabilities & Equity</div><div class="chart-subtitle">Structure</div></div></div><div class="chart-container"><canvas id="chart22"></canvas></div></div>
-                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Position</div><div class="chart-subtitle">With total</div></div></div><div class="chart-container"><canvas id="chart23"></canvas></div></div>
+                <!-- Section 5: Income Statement -->
+                <div class="dashboard-section visible" data-section="income">
+                    <div class="section-header">
+                        <div class="section-icon income"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></div>
+                        <h2 class="section-title">Income Statement</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Revenue Composition</div><div class="chart-subtitle">By product</div></div></div><div class="chart-container"><canvas id="chart13"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Net Revenue</div><div class="chart-subtitle">With YoY growth</div></div></div><div class="chart-container"><canvas id="chart14"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Gross Profit</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart15"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">COS Analysis</div><div class="chart-subtitle">Breakdown</div></div></div><div class="chart-container"><canvas id="chart16"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">OPEX Analysis</div><div class="chart-subtitle">Breakdown</div></div></div><div class="chart-container"><canvas id="chart17"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">EBITDA</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart18"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Profitability Waterfall</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart19"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Net Income</div><div class="chart-subtitle">With margin %</div></div></div><div class="chart-container"><canvas id="chart20"></canvas></div></div>
+                    </div>
                 </div>
 
-                <!-- Section 6: Cash Flow -->
-                <div class="section-header">
-                    <div class="section-icon cashflow"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
-                    <h2 class="section-title">Cash Flow</h2>
+                <!-- Section 6: Balance Sheet -->
+                <div class="dashboard-section visible" data-section="balance">
+                    <div class="section-header">
+                        <div class="section-icon balance"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+                        <h2 class="section-title">Balance Sheet</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Assets</div><div class="chart-subtitle">Current vs Non-current</div></div></div><div class="chart-container"><canvas id="chart21"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Liabilities & Equity</div><div class="chart-subtitle">Structure</div></div></div><div class="chart-container"><canvas id="chart22"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Position</div><div class="chart-subtitle">With total</div></div></div><div class="chart-container"><canvas id="chart23"></canvas></div></div>
+                    </div>
                 </div>
-                <div class="charts-grid">
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Cash Flow Breakdown</div><div class="chart-subtitle">Op, Inv, Fin</div></div></div><div class="chart-container"><canvas id="chart24"></canvas></div></div>
-                    <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Free Cash Flow</div><div class="chart-subtitle">FCFF breakdown</div></div></div><div class="chart-container"><canvas id="chart25"></canvas></div></div>
-                    <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Bridge</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart26"></canvas></div></div>
+
+                <!-- Section 7: Cash Flow -->
+                <div class="dashboard-section visible" data-section="cashflow">
+                    <div class="section-header">
+                        <div class="section-icon cashflow"><svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
+                        <h2 class="section-title">Cash Flow</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Cash Flow Breakdown</div><div class="chart-subtitle">Op, Inv, Fin</div></div></div><div class="chart-container"><canvas id="chart24"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Free Cash Flow</div><div class="chart-subtitle">FCFF breakdown</div></div></div><div class="chart-container"><canvas id="chart25"></canvas></div></div>
+                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Cash Bridge</div><div class="chart-subtitle">Latest period</div></div></div><div class="chart-container tall"><canvas id="chart26"></canvas></div></div>
+                    </div>
                 </div>
             `;
         }
