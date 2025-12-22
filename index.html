@@ -797,7 +797,8 @@
                     <div class="charts-grid">
                         <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Portfolio</div><div class="chart-subtitle">Gross vs provisions</div></div></div><div class="chart-container"><canvas id="chart10"></canvas></div></div>
                         <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Loan Issuance</div><div class="chart-subtitle">Value and count</div></div></div><div class="chart-container"><canvas id="chart11"></canvas></div></div>
-                        <div class="chart-card full-width"><div class="chart-header"><div><div class="chart-title">Lending Profitability</div><div class="chart-subtitle">Interest and provisions</div></div></div><div class="chart-container"><canvas id="chart12"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Lending Profitability</div><div class="chart-subtitle">Interest and provisions</div></div></div><div class="chart-container"><canvas id="chart12"></canvas></div></div>
+                        <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Net Interest Income</div><div class="chart-subtitle">With post-provision yield %</div></div></div><div class="chart-container"><canvas id="chart12b"></canvas></div></div>
                     </div>
                 </div>
 
@@ -1026,6 +1027,12 @@
                 { label: 'Provision', data: filterData(incrProv.values, incrProv.periods).values.map(v => v ? -Math.abs(v) : 0), backgroundColor: colors.danger + '80', borderColor: colors.danger, borderWidth: 1, borderRadius: 4 },
                 { label: 'Net', data: filterData(postProv.values, postProv.periods).values, backgroundColor: colors.primary + '80', borderColor: colors.primary, borderWidth: 1, borderRadius: 4 }
             ]);
+
+            // Chart 12b: Net Interest Income with Post-Provision Yield
+            const postProvYield = getSubRowData(sheetData, 'Interest income, post-provision', '% post-provision yield on avg loan balance');
+            const fPostProv = filterData(postProv.values, postProv.periods);
+            const fPostProvYield = filterData(postProvYield.values, postProvYield.periods);
+            createComboChart('chart12b', labels, fPostProv.values, fPostProvYield.values, 'Net Interest Income', 'Post-Provision Yield %', colors.warning, colors.success);
 
             // ========== JIM.com Section ==========
             
